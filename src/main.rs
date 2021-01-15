@@ -2,9 +2,9 @@ use std::error::Error;
 use std::io;
 
 use geojson::{Feature, FeatureCollection, GeoJson, Geometry, Value};
-use log::{debug, error};
+use log::debug;
 use serde::Deserialize;
-use serde_json::{to_value, Map};
+use serde_json::{Map, value::Value as JValue};
 use url::Url;
 
 #[derive(Debug, Deserialize)]
@@ -44,9 +44,9 @@ impl Into<Feature> for PlaceDetailsResult {
         let mut properties = Map::new();
         properties.insert(
             "address".to_string(),
-            to_value(self.formatted_address).unwrap(),
+            JValue::String(self.formatted_address),
         );
-        properties.insert("name".to_string(), to_value(self.name).unwrap());
+        properties.insert("name".to_string(), JValue::String(self.name));
 
         let geometry = Geometry::new(Value::Point(vec![
             self.geometry.location.lng,
@@ -64,20 +64,27 @@ impl Into<Feature> for PlaceDetailsResult {
 }
 
 // TODO - create record iterator
-// TODO - Record to Feature
 
-fn get_place_details(record: Record, api_key: &str) -> Result<PlaceDetails, Box<dyn Error>> {
-    let ftid = record
+fn get_place_details(record: &Record) -> Result<PlaceDetails, Box<dyn Error>> {
+    let ftid = record_to_ftid(&record)?;
+
+    // TODO - add cache
+    get_place_details_by_ftid(ftid)
+}
+
+fn record_to_ftid(record: &Record) -> Result<&str, Box<dyn Error>> {
+    record
         .URL
         .path_segments()
         .and_then(|p| p.last())
         // TODO - verify this covers all cases; if so, this can be optimized
         .map(|d| d.trim_start_matches("data=!4m2!3m1!1s"))
-        .ok_or(format!("Unable to find ftid for record: {:?}", record))?;
-    debug!("ftid {:?}", ftid);
+        .ok_or(format!("Unable to find ftid for record: {:?}", record))
+        .map_err(|e| e.into())
+}
 
-    // TODO - add cache
-    // call google api
+fn get_place_details_by_ftid(ftid: &str) -> Result<PlaceDetails, Box<dyn Error>> {
+    let api_key = &std::env::var("GOOGLE_API_KEY")?;
     let request_url = Url::parse(&format!(
         // Reference https://developers.google.com/places/web-service/details
         "https://maps.googleapis.com/maps/api/place/details/json?key={}&ftid={}&fields=name,geometry,formatted_address",
@@ -87,22 +94,26 @@ fn get_place_details(record: Record, api_key: &str) -> Result<PlaceDetails, Box<
     reqwest::blocking::get(request_url)?.json().map_err(|e| e.into())
 }
 
+fn record_to_feature(record: &Record) -> Result<Feature, Box<dyn Error>> {
+    let place_details = get_place_details(record)?;
+    debug!("place_details: {:?}", place_details);
+
+    Ok(place_details.result.into())
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
-
-    let api_key = &std::env::var("GOOGLE_API_KEY")?;
 
     let mut rdr = csv::Reader::from_reader(io::stdin());
     let mut features: Vec<Feature> = vec![];
 
     for result in rdr.deserialize() {
         let record: Record = result?;
-        debug!("{:?}", record);
+        debug!("record: {:?}", record);
 
-        let place_details = get_place_details(record, &api_key)?;
-        debug!("body: {:?}", place_details);
+        let feature = record_to_feature(&record)?;
+        debug!("feature: {:?}", feature);
 
-        let feature: Feature = place_details.result.into();
         features.push(feature);
     }
     let feature_collection = FeatureCollection {
@@ -121,15 +132,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 mod test {
     use super::*;
 
-    // read csv to record
     #[test]
     fn test_csv_record() {
         unimplemented!();
     }
 
-    // get ftid from record
+    // TODO - get ftid from record
 
-    // build reqwest request
+    // TODO - build reqwest request
 
     // geojson
     #[test]
