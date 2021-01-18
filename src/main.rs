@@ -42,11 +42,15 @@ struct PlaceDetailsLocation {
 impl Into<Feature> for PlaceDetailsResult {
     fn into(self) -> Feature {
         let mut properties = Map::new();
-        properties.insert(
+        
+        // properties Location address
+        let mut location = Map::new();
+        location.insert(
             "address".to_string(),
             JValue::String(self.formatted_address),
         );
-        properties.insert("name".to_string(), JValue::String(self.name));
+        properties.insert("Location".to_string(), JValue::Object(location));
+        properties.insert("Title".to_string(), JValue::String(self.name));
 
         let geometry = Geometry::new(Value::Point(vec![
             self.geometry.location.lng,
@@ -241,11 +245,13 @@ Chubby Noodle North Beach,,https://www.google.com/maps/place/Chubby+Noodle+North
         };
         let expected = {
             let mut properties = Map::new();
-            properties.insert(
+            let mut location = Map::new();
+            location.insert(
                 "address".to_string(),
                 JValue::String("123 Fake St, Springfield".to_string()),
             );
-            properties.insert("name".to_string(), JValue::String("Paper Co".to_string()));
+            properties.insert("Location".to_string(), JValue::Object(location));
+            properties.insert("Title".to_string(), JValue::String("Paper Co".to_string()));
 
             Feature {
                 bbox: None,
