@@ -134,7 +134,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     };
 
     let serialized = GeoJson::from(feature_collection).to_string();
-    println!("{:}", serialized);
+    print!("{}", serialized);
 
     Ok(())
 }
@@ -247,7 +247,7 @@ Chubby Noodle North Beach,,https://www.google.com/maps/place/Chubby+Noodle+North
             let mut properties = Map::new();
             let mut location = Map::new();
             location.insert(
-                "address".to_string(),
+                "Address".to_string(),
                 JValue::String("123 Fake St, Springfield".to_string()),
             );
             properties.insert("Location".to_string(), JValue::Object(location));
