@@ -42,8 +42,6 @@ struct PlaceDetailsLocation {
 impl Into<Feature> for PlaceDetailsResult {
     fn into(self) -> Feature {
         let mut properties = Map::new();
-        
-        // properties Location address
         let mut location = Map::new();
         location.insert(
             "address".to_string(),
